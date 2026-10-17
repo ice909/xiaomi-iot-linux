@@ -1,0 +1,3 @@
+# Load the extended driver before competing WMI drivers during early boot.
+# A missing module must fail image generation instead of silently losing IoT.
+MODULES=("bitland_mifs_wmi_iot" "${MODULES[@]}")

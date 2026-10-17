@@ -1,0 +1,22 @@
+[Unit]
+Description=IoT laptop remote power service (experimental)
+After=dbus.service systemd-logind.service systemd-modules-load.service
+Requires=systemd-logind.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+# Installation never starts this service. Observe mode never calls OS actions.
+Environment=IOT_REMOTE_MODE=observe
+EnvironmentFile=-/etc/xiaomi-iot/remote.conf
+ExecStart=/usr/libexec/xiaomi-iot-remote --mode=${IOT_REMOTE_MODE} --report-state
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+UMask=0077
+RuntimeDirectory=xiaomi-iot-remote
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

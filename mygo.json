@@ -1,0 +1,6 @@
+{
+  "name": "Xiaomi IoT Setup",
+  "identifier": "io.github.xiaomi_iot_linux.setup",
+  "version": "0.1.0",
+  "out": "dist/mygo"
+}

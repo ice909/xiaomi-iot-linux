@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=小米 IoT 配置助手
+Name[en]=Xiaomi IoT Setup
+Comment=在 Linux 上配置小米笔记本内置 IoT 模块并添加到米家
+Exec=xiaomi-iot
+Icon=xiaomi-iot-setup
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=Xiaomi;REDMI;Mi Home;米家;IoT;Wi-Fi;
+StartupNotify=true

@@ -1,0 +1,187 @@
+--- a/bitland-mifs-wmi.c
++++ b/bitland-mifs-wmi.c
+@@ -33,6 +33,8 @@
+ #include <linux/unaligned.h>
+ #include <linux/units.h>
+ #include <linux/wmi.h>
++
++#include "xiaomi-iot.h"
+ 
+ #define DRV_NAME		"bitland-mifs-wmi"
+ #define BITLAND_MIFS_GUID	"B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B"
+@@ -159,6 +161,10 @@
+ 	struct device *hwmon_dev;
+ 	struct device *pp_dev;
+ 	enum platform_profile_option saved_profile;
++	bool saved_profile_valid;
++	bool xiaomi_iot_events;
++	bool tm2425_profiles;
++	u8 saved_mode;
+ };
+ 
+ static int bitland_mifs_wmi_call(struct bitland_mifs_wmi_data *data,
+@@ -183,6 +189,9 @@
+ 
+ 	return 0;
+ }
++
++#include "xiaomi-power.h"
++#include "xiaomi-profiles.h"
+ 
+ static int laptop_profile_get(struct device *dev,
+ 			      enum platform_profile_option *profile)
+@@ -196,6 +205,12 @@
+ 	};
+ 	struct bitland_mifs_output result;
+ 	int ret;
++	u8 mode;
++
++	if (data->tm2425_profiles) {
++		ret = xiaomi_profile_read(data, &mode);
++		return ret ? ret : xiaomi_profile_decode(mode, profile);
++	}
+ 
+ 	ret = bitland_mifs_wmi_call(data, &input, &result);
+ 	if (ret)
+@@ -255,6 +270,16 @@
+ 	};
+ 	int ret;
+ 	u8 val;
++
++	if (data->tm2425_profiles) {
++		switch (profile) {
++		case PLATFORM_PROFILE_LOW_POWER: val = 10; break;
++		case PLATFORM_PROFILE_BALANCED: val = 9; break;
++		case PLATFORM_PROFILE_PERFORMANCE: val = 4; break;
++		default: return -EOPNOTSUPP;
++		}
++		return xiaomi_profile_write(data, val);
++	}
+ 
+ 	switch (profile) {
+ 	case PLATFORM_PROFILE_LOW_POWER:
+@@ -286,9 +311,11 @@
+ 
+ static int platform_profile_probe(void *drvdata, unsigned long *choices)
+ {
++	struct bitland_mifs_wmi_data *data = drvdata;
+ 	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+ 	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+-	set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, choices);
++	if (!data->tm2425_profiles)
++		set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, choices);
+ 	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+ 
+ 	return 0;
+@@ -299,28 +326,51 @@
+ 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
+ 	enum platform_profile_option profile;
+ 	int ret;
++
++	/* A failed query must not reuse a profile from an earlier suspend. */
++	data->saved_profile_valid = false;
+ 
+ 	/* Skip event device */
+ 	if (!data->pp_dev)
+ 		return 0;
+ 
+-	ret = laptop_profile_get(data->pp_dev, &profile);
+-	if (ret == 0)
+-		data->saved_profile = profile;
+-
+-	return ret;
++	if (data->tm2425_profiles) {
++		ret = xiaomi_profile_read(data, &data->saved_mode);
++		if (!ret)
++			ret = xiaomi_profile_decode(data->saved_mode, &profile);
++	} else {
++		ret = laptop_profile_get(data->pp_dev, &profile);
++	}
++	if (ret) {
++		dev_warn(dev, "Failed to save platform profile: %d; continuing suspend\n", ret);
++		return 0;
++	}
++
++	data->saved_profile = profile;
++	data->saved_profile_valid = true;
++
++	return 0;
+ }
+ 
+ static int bitland_mifs_wmi_resume(struct device *dev)
+ {
+ 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
+-
+-	/* Skip event device */
+-	if (!data->pp_dev)
++	int ret;
++
++	/* Skip event devices and profiles that could not be saved. */
++	if (!data->pp_dev || !data->saved_profile_valid)
+ 		return 0;
+ 
++	data->saved_profile_valid = false;
+ 	dev_dbg(dev, "Resuming, restoring profile %d\n", data->saved_profile);
+-	return laptop_profile_set(dev, data->saved_profile);
++	if (data->tm2425_profiles)
++		ret = xiaomi_profile_write(data, data->saved_mode);
++	else
++		ret = laptop_profile_set(data->pp_dev, data->saved_profile);
++	if (ret)
++		dev_warn(dev, "Failed to restore platform profile: %d; continuing resume\n", ret);
++
++	return 0;
+ }
+ 
+ static DEFINE_SIMPLE_DEV_PM_OPS(bitland_mifs_wmi_pm_ops,
+@@ -675,6 +725,7 @@
+ 		return -ENOMEM;
+ 
+ 	drv_data->wdev = wdev;
++	drv_data->tm2425_profiles = xiaomi_tm2425_profiles();
+ 
+ 	ret = devm_mutex_init(&wdev->dev, &drv_data->lock);
+ 	if (ret)
+@@ -683,6 +734,13 @@
+ 	dev_set_drvdata(&wdev->dev, drv_data);
+ 
+ 	if (dev_type == BITLAND_WMI_EVENT) {
++		drv_data->xiaomi_iot_events = xiaomi_iot_supported();
++		if (drv_data->xiaomi_iot_events) {
++			ret = devm_device_add_group(&wdev->dev, &xiaomi_iot_group);
++			if (ret)
++				return ret;
++		}
++
+ 		/* Register input device for hotkeys */
+ 		drv_data->input_dev = devm_input_allocate_device(&wdev->dev);
+ 		if (!drv_data->input_dev)
+@@ -699,6 +757,12 @@
+ 			return ret;
+ 
+ 		return input_register_device(drv_data->input_dev);
++	}
++
++	if (xiaomi_power_supported()) {
++		ret = devm_device_add_group(&wdev->dev, &xiaomi_power_group);
++		if (ret)
++			return ret;
+ 	}
+ 
+ 	/* Register platform profile */
+@@ -745,6 +809,10 @@
+ 	const struct bitland_mifs_event *event = buffer->data;
+ 	struct bitland_fan_notify_data fan_data;
+ 	u8 brightness;
++
++	/* Add forwarding without consuming or replacing the original event path. */
++	if (data->xiaomi_iot_events)
++		xiaomi_iot_forward(&wdev->dev, buffer);
+ 
+ 	/* Validate event type */
+ 	if (event->event_type != WMI_EVENT_TYPE_HOTKEY)
+@@ -843,3 +911,4 @@
+ MODULE_AUTHOR("Mingyou Chen <qby140326@gmail.com>");
+ MODULE_DESCRIPTION("Bitland MIFS (MiInterface) WMI driver");
+ MODULE_LICENSE("GPL");
++MODULE_VERSION("xiaomi-iot-0.1.3");

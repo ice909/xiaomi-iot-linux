@@ -1,0 +1,44 @@
+[
+  {
+    "module": "github.com/ebitengine/purego",
+    "version": "v0.11.1",
+    "license_files": [
+      "packaging/licenses/github.com_ebitengine_purego/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/egoist/mygo",
+    "version": "v0.5.5",
+    "license_files": [
+      "packaging/licenses/github.com_egoist_mygo/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/go-text/typesetting",
+    "version": "v0.3.5",
+    "license_files": [
+      "packaging/licenses/github.com_go-text_typesetting/LICENSE"
+    ]
+  },
+  {
+    "module": "golang.org/x/image",
+    "version": "v0.46.0",
+    "license_files": [
+      "packaging/licenses/golang.org_x_image/LICENSE"
+    ]
+  },
+  {
+    "module": "golang.org/x/text",
+    "version": "v0.43.0",
+    "license_files": [
+      "packaging/licenses/golang.org_x_text/LICENSE"
+    ]
+  },
+  {
+    "module": "github.com/godbus/dbus/v5",
+    "version": "v5.1.0",
+    "license_files": [
+      "packaging/licenses/github.com_godbus_dbus_v5/LICENSE"
+    ]
+  }
+]

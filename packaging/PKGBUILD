@@ -1,0 +1,25 @@
+# Local checkout build: cd packaging && makepkg -si
+pkgname=xiaomi-iot-setup
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='MyGo native setup app for supported Xiaomi laptop IoT modules'
+arch=('x86_64')
+license=('MIT' 'GPL-2.0-only')
+depends=('gtk3' 'polkit' 'networkmanager' 'kmod' 'dkms' 'make' 'gcc' 'mkinitcpio')
+makedepends=('go' 'make' 'python' 'patch')
+optdepends=('linux-headers: Bitland IoT driver headers for the standard Arch kernel'
+            'linux-lts-headers: Bitland IoT driver headers for the Arch LTS kernel')
+source=()
+sha256sums=()
+build() {
+    cd "$startdir/.."
+    make build
+}
+check() {
+    cd "$startdir/.."
+    make test
+}
+package() {
+    cd "$startdir/.."
+    ./install.sh --destdir "$pkgdir"
+}

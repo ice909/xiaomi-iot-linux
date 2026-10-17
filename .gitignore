@@ -1,0 +1,43 @@
+# Build and distribution output
+/build/
+/dist/
+/packaging/src/
+/packaging/pkg/
+/packaging/*.pkg.tar.*
+
+# Local visual reviews and design exploration (production assets stay tracked)
+/docs/preview-*.png
+/docs/VALIDATION.md
+/design/
+
+# Kernel build output
+/kernel/*.o
+/kernel/*.ko
+/kernel/*.mod*
+/kernel/.*.cmd
+/kernel/Module.symvers
+/kernel/modules.order
+/kernel/.tmp_versions/
+
+# Local test output, diagnostics and caches
+*.test
+/coverage.out
+/coverage.html
+*.pcap
+*.pcapng
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Machine-local settings and credentials
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+.DS_Store
+*~
+*.swp
+*.swo
